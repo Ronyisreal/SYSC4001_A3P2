@@ -1,0 +1,523 @@
+# Assignment 3 Part 2a - Complete Solution Documentation
+
+## Student Implementation: Concurrent TA Marking System
+
+---
+
+## Table of Contents
+1. [Project Overview](#project-overview)
+2. [Design Decisions](#design-decisions)
+3. [Implementation Details](#implementation-details)
+4. [How to Use](#how-to-use)
+5. [Testing and Verification](#testing-and-verification)
+6. [Expected Behavior and Race Conditions](#expected-behavior-and-race-conditions)
+7. [Files Delivered](#files-delivered)
+
+---
+
+## Project Overview
+
+### Purpose
+This implementation simulates a concurrent exam marking system where multiple Teaching Assistants (TAs) work together to mark student exams. The system demonstrates:
+- Unix/Linux process management using `fork()`
+- Shared memory communication using System V IPC
+- Concurrent access patterns (without synchronization in Part 2a)
+
+### Requirements Met
+ Minimum 2 TAs (configurable via command line)
+ Shared memory for rubric and exam data
+ Concurrent rubric review and modification
+ Concurrent exam marking
+ Random delays (0.5-1.0s for review, 1.0-2.0s for marking)
+ Progress display showing TA activities
+ Automatic exam loading
+ Termination at student 9999
+
+---
+
+## Design Decisions
+
+### 1. Shared Memory Architecture
+
+**Choice: Two separate shared memory segments**
+- One for the rubric (Rubric structure)
+- One for the current exam (CurrentExam structure)
+
+**Rationale:**
+- Logical separation of concerns
+- Easier to manage and understand
+- Allows for different access patterns
+- Simplifies future synchronization (Part 2b)
+
+### 2. Process Model
+
+**Choice: Fork-based multiprocessing**
+- Parent process creates and manages TAs
+- Each TA is a child process
+
+**Rationale:**
+- True parallelism on multi-core systems
+- Each TA has independent execution flow
+- Realistic simulation of independent workers
+- Meets Unix/Linux process requirement
+
+### 3. Exam File Naming Convention
+
+**Choice: `exam_XXXX.txt` format with 4-digit zero-padded numbers**
+
+**Rationale:**
+- Easy to generate programmatically
+- Sorted alphabetically matches numerical order
+- Simple to iterate through
+- Clear visual indication of exam order
+
+### 4. Question Tracking
+
+**Choice: Boolean array in shared memory**
+```cpp
+bool questions_marked[NUM_EXERCISES];
+```
+
+**Rationale:**
+- Fast lookup for unmarked questions
+- Minimal memory overhead
+- Simple to understand and debug
+- Allows multiple TAs to see marking status
+
+### 5. Random Delay Implementation
+
+**Choice: `random_delay(min, max)` function using `usleep()`**
+```cpp
+void random_delay(double min_sec, double max_sec) {
+    double random_time = min_sec + (max_sec - min_sec) * ((double)rand() / RAND_MAX);
+    int microseconds = (int)(random_time * 1000000);
+    usleep(microseconds);
+}
+```
+
+**Rationale:**
+- Microsecond precision
+- Uniform random distribution
+- Easy to adjust timing parameters
+- Realistic simulation of variable work times
+
+---
+
+## Implementation Details
+
+### Data Structures
+
+#### Rubric Structure
+```cpp
+struct Rubric {
+    char exercises[NUM_EXERCISES][100];
+};
+```
+- Stores 5 exercise rubrics
+- Each rubric line stored as C-string
+- Format: "1, A" where 1 is exercise number, A is rubric text
+
+#### CurrentExam Structure
+```cpp
+struct CurrentExam {
+    int student_number;
+    bool questions_marked[NUM_EXERCISES];
+    int exam_index;
+};
+```
+- Tracks current exam being processed
+- Boolean array prevents duplicate marking (mostly)
+- Exam index used for loading next exam
+
+### Key Functions
+
+#### 1. `load_rubric(Rubric* rubric)`
+- Loads rubric from file into shared memory
+- Called once at program startup
+- Reads 5 lines from rubric.txt
+
+#### 2. `save_rubric(Rubric* rubric)`
+- Saves rubric from shared memory to file
+- Called whenever TA modifies rubric
+- Overwrites entire file with current rubric
+
+#### 3. `load_exam(CurrentExam* exam, int exam_index)`
+- Loads exam file into shared memory
+- Generates filename from index
+- Resets all questions to unmarked
+- Returns false if file doesn't exist
+
+#### 4. `ta_process(int ta_id, Rubric* rubric, CurrentExam* exam)`
+Main TA workflow:
+
+**Phase 1: Review Rubric**
+```cpp
+for (int i = 0; i < NUM_EXERCISES; i++) {
+    random_delay(0.5, 1.0);  // Review time
+    if ((rand() % 100) < 30) {  // 30% chance
+        // Modify rubric
+        save_rubric(rubric);
+    }
+}
+```
+
+**Phase 2: Mark Questions**
+```cpp
+for (int q = 0; q < NUM_EXERCISES; q++) {
+    if (!exam->questions_marked[q]) {
+        exam->questions_marked[q] = true;
+        random_delay(1.0, 2.0);  // Marking time
+        break;  // Mark only one at a time
+    }
+}
+```
+
+**Phase 3: Load Next Exam**
+```cpp
+if (all_questions_marked(exam)) {
+    load_exam(exam, exam->exam_index + 1);
+}
+```
+
+### Process Flow Diagram
+
+```
+Main Process
+    |
+    ├─> Create Shared Memory (Rubric)
+    ├─> Create Shared Memory (CurrentExam)
+    ├─> Load Initial Rubric
+    ├─> Load First Exam
+    |
+    ├─> Fork TA 1
+    ├─> Fork TA 2
+    ├─> Fork TA 3
+    └─> Fork TA N
+         |
+         └─> Each TA:
+              Loop until student 9999:
+                  1. Review Rubric (5 exercises)
+                     ├─> 0.5-1.0s per exercise
+                     └─> 30% chance to modify
+                  
+                  2. Mark One Question
+                     ├─> Find unmarked question
+                     ├─> Mark it (1.0-2.0s)
+                     └─> Display progress
+                  
+                  3. Check if exam complete
+                     └─> If yes, load next exam
+```
+
+---
+
+## How to Use
+
+### Quick Start
+```bash
+# 1. Generate test files
+./generate_test_files.sh
+
+# 2. Compile
+g++ -o ta_marking ta_marking.cpp
+
+# 3. Run with 2 TAs
+./ta_marking 2
+```
+
+### Using Makefile (Recommended)
+```bash
+# Generate test files and compile
+make all
+make test_files
+
+# Run with different numbers of TAs
+make run2   # 2 TAs
+make run3   # 3 TAs
+make run4   # 4 TAs
+
+# Clean everything
+make clean
+```
+
+### Command Line Usage
+```
+./ta_marking <number_of_TAs>
+
+Arguments:
+  number_of_TAs  : Number of TA processes (minimum 2)
+
+Example:
+  ./ta_marking 3    # Run with 3 TAs
+```
+
+---
+
+## Testing and Verification
+
+### Test Case 1: Basic Functionality (2 TAs)
+```bash
+./ta_marking 2
+```
+
+**Expected Observations:**
+- 2 TAs start working
+- Both review rubric for first exam
+- Both mark different questions
+- Rubric modifications are displayed
+- Progress through multiple exams
+- Terminates at student 9999
+
+### Test Case 2: Higher Concurrency (4 TAs)
+```bash
+./ta_marking 4
+```
+
+**Expected Observations:**
+- 4 TAs work simultaneously
+- Faster exam processing
+- More rubric modifications
+- More potential race conditions
+- More interleaved output
+
+### Test Case 3: Rubric Modification Verification
+```bash
+# Before running
+cat rubric.txt
+
+# Run program
+./ta_marking 2
+
+# After running (or during)
+cat rubric.txt
+```
+
+**Expected:**
+- Rubric characters increment (A→B, B→C, etc.)
+- Changes persist to file
+- Changes visible to all TAs
+
+### Test Case 4: File Generation
+```bash
+./generate_test_files.sh
+ls exam_*.txt
+```
+
+**Expected Output:**
+```
+exam_0001.txt  exam_0006.txt  exam_0011.txt  exam_0016.txt
+exam_0002.txt  exam_0007.txt  exam_0012.txt  exam_0017.txt
+...
+exam_9999.txt
+```
+
+### Verification
+
+- [ ] Program compiles without errors
+- [ ] Accepts command line argument for number of TAs
+- [ ] Rejects < 2 TAs with error message
+- [ ] Creates shared memory successfully
+- [ ] Loads rubric into shared memory
+- [ ] Loads first exam into shared memory
+- [ ] Forks correct number of TA processes
+- [ ] Each TA displays start message
+- [ ] TAs review rubric with random delays
+- [ ] TAs modify rubric approximately 30% of time
+- [ ] Rubric modifications saved to file
+- [ ] TAs mark questions with random delays
+- [ ] Progress messages show student number and question
+- [ ] New exams loaded when current completes
+- [ ] Program terminates at student 9999
+- [ ] All TAs terminate
+- [ ] Shared memory cleaned up
+
+---
+
+## Expected Behavior and Race Conditions
+
+### Normal Expected Behavior
+
+1. **Startup:**
+   ```
+   Starting TA marking system with 2 TAs
+   Loaded rubric into shared memory
+   Loaded first exam (student 1)
+   [TA 1] Started working
+   [TA 2] Started working
+   ```
+
+2. **Rubric Review:**
+   ```
+   [TA 1] Reviewing rubric for exam 1
+   [TA 1] Correcting rubric for exercise 3
+   [TA 1] Changing exercise 3 rubric from 'C' to 'D'
+   ```
+
+3. **Marking:**
+   ```
+   [TA 1] Marking student 1, question 1
+   [TA 1] Finished marking student 1, question 1
+   ```
+
+4. **Exam Completion:**
+   ```
+   [TA 1] All questions marked for student 1. Loading next exam...
+   [TA 1] Loaded exam for student 2
+   ```
+
+5. **Termination:**
+   ```
+   [TA 1] Finished - reached student 9999
+   [TA 2] Finished - reached student 9999
+   All TAs have finished marking
+   ```
+
+### Race Conditions (Part 2a - Expected!)
+
+#### Race Condition 1: Rubric Modification
+**Scenario:** Two TAs modify the same rubric line simultaneously
+
+**Example Output:**
+```
+[TA 1] Correcting rubric for exercise 3
+[TA 2] Correcting rubric for exercise 3
+[TA 1] Changing exercise 3 rubric from 'C' to 'D'
+[TA 2] Changing exercise 3 rubric from 'D' to 'E'
+```
+
+**Why it happens:** No synchronization protecting rubric access
+**Impact:** Rubric may increment more than intended
+**Fix in Part 2b:** Semaphore protecting rubric read/write
+
+#### Race Condition 2: Question Marking
+**Scenario:** Two TAs mark the same question
+
+**Example Output:**
+```
+[TA 1] Marking student 1, question 1
+[TA 2] Marking student 1, question 1
+```
+
+**Why it happens:** Check-and-set not atomic
+**Impact:** Duplicate work (but harmless in this simulation)
+**Fix in Part 2b:** Semaphore protecting question marking
+
+#### Race Condition 3: Exam Loading
+**Scenario:** Multiple TAs try to load next exam
+
+**Example Output:**
+```
+[TA 1] All questions marked for student 1. Loading next exam...
+[TA 2] All questions marked for student 1. Loading next exam...
+```
+
+**Why it happens:** No synchronization for completion check
+**Impact:** Redundant loads (but overwrites with same data)
+**Fix in Part 2b:** Semaphore protecting exam transitions
+
+### Important Notes on Race Conditions
+
+ **These race conditions are EXPECTED and ACCEPTABLE in Part 2a**
+
+The assignment explicitly states:
+> "At this point do not worry about critical sections. That is, the executing program could run into race conditions."
+
+Part 2b will add semaphores to eliminate these race conditions by protecting:
+1. Rubric access (readers-writers problem)
+2. Question marking (mutual exclusion)
+3. Exam loading (mutual exclusion)
+
+---
+
+## Files Delivered
+
+### Core Implementation
+1. **ta_marking.cpp**
+   - Main C++ source file
+   - ~350 lines of code
+   - Implements all required functionality
+
+### Build and Test Infrastructure
+2. **Makefile**
+   - Compilation targets
+   - Test file generation
+   - Run configurations
+   - Cleanup utilities
+
+3. **generate_test_files.sh**
+   - Creates rubric.txt
+   - Creates 20 exam files
+   - Creates end marker (exam_9999.txt)
+
+4. **test_demo.sh**
+   - Automated test script
+   - Demonstrates functionality
+   - Shows before/after rubric state
+
+### Documentation
+5. **README_Part2a.md**
+   - User guide
+   - Build instructions
+   - Feature list
+   - Testing guide
+
+6. **SOLUTION_DOCUMENTATION.txt** (this file)
+   - Complete technical documentation
+   - Design decisions
+   - Implementation details
+   - Race condition analysis
+
+### Generated Files (when tests run)
+- rubric.txt
+- exam_0001.txt through exam_0020.txt
+- exam_9999.txt
+
+---
+
+## Key Achievements
+
+ **Concurrent Processing**: Multiple TAs work simultaneously
+ **Shared Memory IPC**: Proper use of System V shared memory
+ **Process Management**: Correct fork/wait pattern
+ **Random Timing**: Realistic variable delays
+ **File I/O**: Rubric and exam file handling
+ **Progress Tracking**: Clear display of TA activities
+ **Configurable**: Command-line argument for TA count
+ **Robust**: Proper error handling and cleanup
+ **Well Documented**: Comprehensive comments and documentation
+
+---
+
+## Future Enhancements (Part 2b)
+
+The following will be added in Part 2b:
+
+1. **Semaphores for Rubric Access**
+   - Reader/writer semaphore pattern
+   - Multiple TAs can read simultaneously
+   - Only one TA can write at a time
+
+2. **Semaphores for Question Marking**
+   - Mutual exclusion for marking array
+   - Atomic check-and-mark operation
+
+3. **Semaphores for Exam Transitions**
+   - Ensure only one TA loads next exam
+   - Synchronize exam completion
+
+4. **Enhanced Statistics** (Bonus)
+   - Track marking times
+   - Count rubric modifications
+   - TA productivity metrics
+
+---
+
+## Conclusion
+
+This implementation successfully demonstrates concurrent process management in Unix/Linux, meeting all requirements for Part 2a. 
+
+The race conditions observed are expected and serve as excellent learning opportunities to understand why synchronization primitives are necessary in concurrent systems.
+
+---
+
+**End of Documentation**
