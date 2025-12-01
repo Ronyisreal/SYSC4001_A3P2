@@ -1,0 +1,269 @@
+SYSTEM ARCHITECTURE DIAGRAM
+==========================
+
+Part 2a: Concurrent TA Marking System
+
+
+1. OVERALL SYSTEM STRUCTURE
+   ========================
+
+   ┌─────────────────────────────────────────────────────────┐
+   │                     Main Process                        │
+   │                                                         │
+   │  1. Create Shared Memory Segments                       │
+   │  2. Load Initial Rubric & Exam                          │
+   │  3. Fork N TA Processes                                 │
+   │  4. Wait for all TAs to finish                          │
+   │  5. Cleanup Shared Memory                               │
+   └─────────────────────────────────────────────────────────┘
+                           │
+            ┌──────────────┼──────────────┐
+            │              │              │
+            ▼              ▼              ▼
+   ┌──────────────┐ ┌──────────────┐ ┌──────────────┐
+   │    TA 1      │ │    TA 2      │ │    TA N      │
+   │  (Process)   │ │  (Process)   │ │  (Process)   │
+   └──────────────┘ └──────────────┘ └──────────────┘
+            │              │              │
+            └──────────────┼──────────────┘
+                           │
+                           ▼
+            ┌──────────────────────────────┐
+            │      Shared Memory           │
+            │                              │
+            │  ┌────────────────────────┐  │
+            │  │   Rubric Structure     │  │
+            │  │  - Exercise 1: "1, A"  │  │
+            │  │  - Exercise 2: "2, B"  │  │
+            │  │  - Exercise 3: "3, C"  │  │
+            │  │  - Exercise 4: "4, D"  │  │
+            │  │  - Exercise 5: "5, E"  │  │
+            │  └────────────────────────┘  │
+            │                              │
+            │  ┌────────────────────────┐  │
+            │  │ CurrentExam Structure  │  │
+            │  │  - student_number      │  │
+            │  │  - questions_marked[5] │  │
+            │  │  - exam_index          │  │
+            │  └────────────────────────┘  │
+            └──────────────────────────────┘
+
+
+2. TA PROCESS WORKFLOW
+   ===================
+
+   Each TA Process executes this loop:
+
+   ┌──────────────────────────────────────┐
+   │  START: TA Process                   │
+   └──────────┬───────────────────────────┘
+              │
+              ▼
+   ┌──────────────────────────────────────┐
+   │  Check if student == 9999            │───Yes───┐
+   └──────────┬───────────────────────────┘         │
+              No                                    │
+              ▼                                     │
+   ┌──────────────────────────────────────┐         │
+   │  PHASE 1: REVIEW RUBRIC              │         │
+   │  ═══════════════════════             │         │
+   │  For each exercise (1-5):            │         │
+   │    • Random delay 0.5-1.0s           │         │
+   │    • 30% chance to modify            │         │
+   │    • If modify:                      │         │
+   │      - Increment rubric char         │         │
+   │      - Save to file                  │         │
+   │      - Display change                │         │
+   └──────────┬───────────────────────────┘         │
+              │                                     │
+              ▼                                     │
+   ┌──────────────────────────────────────┐         │
+   │  PHASE 2: MARK QUESTION              │         │
+   │  ══════════════════════              │         │
+   │  • Find unmarked question            │         │
+   │  • Mark it (set flag to true)        │         │
+   │  • Random delay 1.0-2.0s             │         │
+   │  • Display progress                  │         │
+   └──────────┬───────────────────────────┘         │
+              │                                     │
+              ▼                                     │
+   ┌──────────────────────────────────────┐         │
+   │  PHASE 3: CHECK COMPLETION           │         │
+   │  ═════════════════════════           │         │
+   │  All questions marked?               │         │
+   └──────┬───────────────┬───────────────┘         │
+          No              Yes                       │
+          │               │                         │
+          │               ▼                         │
+          │    ┌──────────────────────────┐         │
+          │    │  Load Next Exam          │         │
+          │    │  • Increment exam_index  │         │
+          │    │  • Read new exam file    │         │
+          │    │  • Reset marked flags    │         │
+          │    └──────────┬───────────────┘         │
+          │               │                         │
+          └───────────────┘                         │
+                          │                         │
+              ┌───────────┘                         │
+              │                                     │
+              └─────────────────────────────────────┤
+                                                    │
+                                                    ▼
+                                          ┌──────────────────┐
+                                          │  TERMINATE       │
+                                          └──────────────────┘
+
+
+3. SHARED MEMORY ACCESS PATTERNS
+   ==============================
+
+   RUBRIC ACCESS:
+   ──────────────
+
+   Read (All TAs concurrently):
+   TA1 ──┐
+   TA2 ──┼── → Rubric.exercises[i] ── → Display
+   TA3 ──┘
+
+   Write (One TA at a time - but not enforced in Part 2a):
+   TA1 ── → Rubric.exercises[i] ── → Increment char ── → Save to file
+   TA2 ── → Rubric.exercises[i] ── → Increment char ── → Save to file
+         (RACE CONDITION - both may modify same line)
+
+
+   EXAM ACCESS:
+   ────────────
+
+   Read marking status (All TAs):
+   TA1 ──┐
+   TA2 ──┼── → questions_marked[i] ── → Check if false
+   TA3 ──┘
+
+   Write marking status (One TA - but not enforced):
+   TA1 ── → questions_marked[i] = true
+   TA2 ── → questions_marked[i] = true
+         (RACE CONDITION - both may mark same question)
+
+
+4. FILE SYSTEM INTERACTION
+   ========================
+
+                    ┌─────────────┐
+                    │  rubric.txt │
+                    └──────┬──────┘
+                           │
+         ┌─────────────────┼─────────────────┐
+         │                 │                 │
+    Load (once)       Save (when          Read (for
+    at startup        modified)           review)
+         │                 │                 │
+         ▼                 ▼                 ▼
+   ┌─────────────────────────────────────────────┐
+   │         Shared Memory (Rubric)              │
+   └─────────────────────────────────────────────┘
+
+
+                    ┌─────────────┐
+                    │ exam_*.txt  │
+                    └──────┬──────┘
+                           │
+                      Load when
+                      needed
+                           │
+                           ▼
+   ┌─────────────────────────────────────────────┐
+   │       Shared Memory (CurrentExam)           │
+   └─────────────────────────────────────────────┘
+
+
+5. RACE CONDITION EXAMPLES
+   ========================
+
+   SCENARIO 1: Concurrent Rubric Modification
+   ──────────────────────────────────────────
+
+   Time  TA1                    TA2
+   ────  ───                    ───
+   t0    Read: "1, A"          Read: "1, A"
+   t1    Decide to modify      Decide to modify
+   t2    Calculate 'A'+1='B'   Calculate 'A'+1='B'
+   t3    Write: "1, B"         Write: "1, B"
+   
+   Expected: One increment (A→B)
+   Actual: One increment (both wrote same value)
+   Issue: Wasted work, potential data corruption
+
+
+   SCENARIO 2: Concurrent Question Marking
+   ───────────────────────────────────────
+
+   Time  TA1                    TA2
+   ────  ───                    ───
+   t0    Check Q1: unmarked    Check Q1: unmarked
+   t1    Decide to mark Q1     Decide to mark Q1
+   t2    Set Q1 = true         Set Q1 = true
+   t3    Mark for 1.5s         Mark for 1.5s
+
+   Expected: One TA marks Q1
+   Actual: Both TAs mark Q1
+   Issue: Duplicate work
+
+
+6. DATA STRUCTURES
+   ===============
+
+   Rubric Structure:
+   ┌──────────────────────────────┐
+   │ exercises[0] = "1, A"        │  100 bytes
+   │ exercises[1] = "2, B"        │  100 bytes
+   │ exercises[2] = "3, C"        │  100 bytes
+   │ exercises[3] = "4, D"        │  100 bytes
+   │ exercises[4] = "5, E"        │  100 bytes
+   └──────────────────────────────┘
+   Total: 500 bytes
+
+   CurrentExam Structure:
+   ┌──────────────────────────────┐
+   │ student_number    = 0001     │  4 bytes
+   │ questions_marked  = [F,F,F,F,F]   5 bytes
+   │ exam_index        = 1        │  4 bytes
+   └──────────────────────────────┘
+   Total: ~16 bytes
+
+
+7. TERMINATION SEQUENCE
+   ====================
+
+   ┌──────────────────┐
+   │ Load exam_9999   │
+   │ student=9999     │
+   └────────┬─────────┘
+            │
+            ▼
+   ┌──────────────────┐
+   │ TA1 detects 9999 │── → Print finish message ──→ exit(0)
+   └──────────────────┘
+   ┌──────────────────┐
+   │ TA2 detects 9999 │── → Print finish message ──→ exit(0)
+   └──────────────────┘
+   ┌──────────────────┐
+   │ TAN detects 9999 │── → Print finish message ──→ exit(0)
+   └──────────────────┘
+            │
+            ▼
+   ┌──────────────────┐
+   │ Main: waitpid()  │── → Wait for all TAs
+   └────────┬─────────┘
+            │
+            ▼
+   ┌──────────────────┐
+   │ Cleanup shared   │── → shmdt(), shmctl()
+   │ memory           │
+   └────────┬─────────┘
+            │
+            ▼
+   ┌──────────────────┐
+   │ Program exits    │
+   └──────────────────┘
+
+
