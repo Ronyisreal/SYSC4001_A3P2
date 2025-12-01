@@ -4,7 +4,7 @@
 - **Course**: SYSC4001 - Operating Systems
 - **Assignment**: Assignment 3 Part 2
 - **Students**: Rounak Mukherjee (101116888), Timur Grigoryev (101276841)
-- **Date**: December 2024
+- **Date**: December 2025
 
 ---
 
@@ -23,10 +23,10 @@
 This report analyzes the execution of the TA marking system in both non-synchronized (Part 2a) and synchronized (Part 2b) versions. Multiple test runs were performed with varying numbers of TAs (2, 3, and 4) to observe concurrent behavior, potential deadlocks/livelocks, and process coordination.
 
 **Key Findings:**
-- ✅ No deadlocks observed in any test runs
-- ✅ No livelocks observed in any test runs
-- ✅ Proper synchronization achieved with semaphores
-- ✅ All three critical section requirements satisfied in Part 2b
+- No deadlocks observed in any test runs
+- No livelocks observed in any test runs
+- Proper synchronization achieved with semaphores
+- All three critical section requirements satisfied in Part 2b
 
 ---
 
@@ -102,7 +102,7 @@ This report analyzes the execution of the TA marking system in both non-synchron
 4. **Synchronized Exam Loading:**
    Only one TA loaded the next exam after completion detection.
 
-**Verdict:** ✅ No deadlock, no livelock. Proper synchronization achieved.
+**Verdict:** No deadlock, no livelock. Proper synchronization achieved.
 
 ---
 
@@ -124,7 +124,7 @@ This report analyzes the execution of the TA marking system in both non-synchron
 3. **Fair Question Distribution:**
    All 4 TAs participated in marking questions across different exams.
 
-**Verdict:** ✅ No deadlock, no livelock. System scales well with more processes.
+**Verdict:** No deadlock, no livelock. System scales well with more processes.
 
 ---
 
@@ -161,7 +161,7 @@ Waiting: Other writers queue
 - **No Preemption:** ✓ (semaphores)
 - **Circular Wait:** ✗ (single lock, no circular dependency)
 
-**Verdict:** ❌ Cannot deadlock - no circular wait possible
+**Verdict:** Cannot deadlock - no circular wait possible
 
 **Scenario 2: Exam Marking**
 ```
@@ -171,7 +171,7 @@ Waiting: Other TAs queue
 ```
 - **Circular Wait:** ✗ (single lock, linear queue)
 
-**Verdict:** ❌ Cannot deadlock
+**Verdict:** Cannot deadlock
 
 **Scenario 3: Combined Operations**
 ```
@@ -181,7 +181,7 @@ Lock Order Always Maintained:
 3. Locks released before acquiring new ones
 ```
 
-**Verdict:** ❌ No circular wait possible - locks acquired/released in consistent order
+**Verdict:** No circular wait possible - locks acquired/released in consistent order
 
 ### 3.2 Livelock Analysis
 
@@ -192,19 +192,19 @@ Lock Order Always Maintained:
 1. **Reader-Writer Starvation:**
    - Could readers starve writers or vice versa?
    - **Analysis:** Our implementation uses standard semaphores with OS-level queuing
-   - **Verdict:** ❌ No livelock - OS provides fairness
+   - **Verdict:**  No livelock - OS provides fairness
 
 2. **Question Marking Contention:**
    - Could TAs repeatedly fail to claim questions?
    - **Analysis:** Once a TA enters critical section, it successfully claims a question
-   - **Verdict:** ❌ No livelock - progress guaranteed within critical section
+   - **Verdict:**  No livelock - progress guaranteed within critical section
 
 3. **Exam Loading Race:**
    - Could TAs repeatedly try to load without success?
    - **Analysis:** Double-check pattern with exclusive lock ensures one TA succeeds
-   - **Verdict:** ❌ No livelock - mutual exclusion guarantees progress
+   - **Verdict:** No livelock - mutual exclusion guarantees progress
 
-**Overall Livelock Verdict:** ❌ No livelock observed or possible in design
+**Overall Livelock Verdict:** No livelock observed or possible in design
 
 ---
 
@@ -369,9 +369,9 @@ rubric_write_unlock(semid, ta_id); // Exit section
 ```
 
 **Mutual Exclusion Satisfied:**
-- ✅ SEM_RUBRIC_MUTEX ensures only one writer
-- ✅ Readers-writer pattern: writers wait for all readers
-- ✅ No concurrent writes observed in testing
+- SEM_RUBRIC_MUTEX ensures only one writer
+- Readers-writer pattern: writers wait for all readers
+- No concurrent writes observed in testing
 
 **Evidence from logs:**
 ```
@@ -390,15 +390,15 @@ sem_signal(semid, SEM_EXAM_MUTEX); // Exit section
 ```
 
 **Mutual Exclusion Satisfied:**
-- ✅ SEM_EXAM_MUTEX ensures atomic claim
-- ✅ No duplicate question marking in Part 2b
-- ✅ `being_marked` flag prevents conflicts
+- SEM_EXAM_MUTEX ensures atomic claim
+- No duplicate question marking in Part 2b
+- `being_marked` flag prevents conflicts
 
 **Comparison with Part 2a:**
-- ❌ Part 2a: No mutual exclusion → race conditions
-- ✅ Part 2b: Full mutual exclusion → no race conditions
+- Part 2a: No mutual exclusion → race conditions
+- Part 2b: Full mutual exclusion → no race conditions
 
-**Verdict:** ✅ **MUTUAL EXCLUSION SATISFIED**
+**Verdict:**  **MUTUAL EXCLUSION SATISFIED**
 
 ---
 
@@ -479,7 +479,7 @@ sem_signal(SEM_EXAM_LOADING);
 - First TA completes, releases locks
 - Next TA can proceed (even if checks fails, it exits quickly)
 
-**Verdict:** ✅ **PROGRESS SATISFIED**
+**Verdict:**  **PROGRESS SATISFIED**
 
 ---
 
@@ -571,7 +571,7 @@ Example with 4 TAs:
   T_wait_exam ≤ 3 × 0.01s = 0.03s
 ```
 
-**Verdict:** ✅ **BOUNDED WAITING SATISFIED**
+**Verdict:**  **BOUNDED WAITING SATISFIED**
 
 ---
 
@@ -579,9 +579,9 @@ Example with 4 TAs:
 
 | Requirement | Part 2a | Part 2b | Evidence |
 |-------------|---------|---------|----------|
-| **Mutual Exclusion** | ❌ Failed | ✅ Satisfied | No concurrent writes in Part 2b logs |
-| **Progress** | ✅ Satisfied* | ✅ Satisfied | All TAs make progress in both versions |
-| **Bounded Waiting** | ✅ Satisfied* | ✅ Satisfied | FIFO queuing ensures bounded wait |
+| **Mutual Exclusion** | Failed | Satisfied | No concurrent writes in Part 2b logs |
+| **Progress** | Satisfied* | Satisfied | All TAs make progress in both versions |
+| **Bounded Waiting** | Satisfied* | Satisfied | FIFO queuing ensures bounded wait |
 
 *In Part 2a, progress and bounded waiting are trivially satisfied because there is no blocking - TAs don't wait for critical sections since there are no critical sections! However, this comes at the cost of correctness (race conditions).
 
@@ -592,19 +592,19 @@ Example with 4 TAs:
 ### 6.1 Key Findings Summary
 
 1. **Deadlock/Livelock:**
-   - ✅ No deadlocks observed in any test run
-   - ✅ No livelocks observed in any test run
-   - ✅ Design prevents circular wait conditions
-   - ✅ Lock hierarchy and short critical sections ensure progress
+   - No deadlocks observed in any test run
+   - No livelocks observed in any test run
+   - Design prevents circular wait conditions
+   - Lock hierarchy and short critical sections ensure progress
 
 2. **Critical Section Problem:**
-   - ✅ Mutual exclusion fully satisfied in Part 2b
-   - ✅ Progress guaranteed by semaphore queuing
-   - ✅ Bounded waiting ensured by FIFO semaphore implementation
+   - Mutual exclusion fully satisfied in Part 2b
+   - Progress guaranteed by semaphore queuing
+   - Bounded waiting ensured by FIFO semaphore implementation
 
 3. **Race Conditions:**
-   - ❌ Part 2a: Race conditions present (expected)
-   - ✅ Part 2b: All race conditions eliminated
+   - Part 2a: Race conditions present (expected)
+   - Part 2b: All race conditions eliminated
 
 ### 6.2 Design Quality Assessment
 
@@ -631,11 +631,11 @@ Example with 4 TAs:
 ### 6.4 Testing Methodology
 
 Tests performed:
-- ✅ Part 2a with 2 TAs (baseline)
-- ✅ Part 2b with 2 TAs (validation)
-- ✅ Part 2b with 4 TAs (scalability)
-- ✅ Multiple runs (non-determinism verification)
-- ✅ Log analysis (correctness verification)
+- Part 2a with 2 TAs (baseline)
+- Part 2b with 2 TAs (validation)
+- Part 2b with 4 TAs (scalability)
+- Multiple runs (non-determinism verification)
+- Log analysis (correctness verification)
 
 ### 6.5 Final Verdict
 
