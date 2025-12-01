@@ -50,7 +50,6 @@ SYSC4001_A3P2/
 └── docs/
     ├── ARCHITECTURE_DIAGRAM.txt        # System architecture
     ├── SOLUTION_DOCUMENTATION.txt      # Technical documentation
-    └── FILE_FORMATS.txt                # Input file format guide
 ```
 
 ---
@@ -324,7 +323,7 @@ Should work correctly, demonstrating scalability
 
 Our implementation in Part 2b satisfies all three requirements of the critical section problem:
 
-#### 1. Mutual Exclusion ✅
+#### 1. Mutual Exclusion 
 
 **Requirement**: Only one process can execute in its critical section at a time (for exclusive resources).
 
@@ -356,7 +355,7 @@ sem_signal(semid, SEM_EXAM_MUTEX);   // Exit section
 
 ---
 
-#### 2. Progress ✅
+#### 2. Progress 
 
 **Requirement**: If no process is in its critical section and some processes want to enter, selection cannot be postponed indefinitely.
 
@@ -383,7 +382,7 @@ sem_signal(semid, SEM_EXAM_MUTEX);   // Exit section
 
 ---
 
-#### 3. Bounded Waiting ✅
+#### 3. Bounded Waiting 
 
 **Requirement**: There exists a bound on the number of times other processes can enter their critical sections after a process has requested entry.
 
@@ -467,10 +466,10 @@ sem_signal(SEM_RUBRIC_MUTEX);
 ```
 
 **Benefits**:
-- ✅ Multiple TAs can read rubric simultaneously (efficiency)
-- ✅ Writers have exclusive access (correctness)
-- ✅ No race conditions
-- ✅ Good throughput
+-  Multiple TAs can read rubric simultaneously (efficiency)
+-  Writers have exclusive access (correctness)
+-  No race conditions
+-  Good throughput
 
 ---
 
@@ -509,13 +508,13 @@ acquire(READ) → release(READ) → acquire(WRITE)
 
 | Aspect | Rating | Evidence |
 |--------|--------|----------|
-| **Correctness** | ✅ Excellent | No race conditions in Part 2b |
-| **Safety** | ✅ Excellent | All critical section requirements satisfied |
-| **Liveness** | ✅ Excellent | No deadlock, no livelock, guaranteed progress |
-| **Fairness** | ✅ Good | FIFO queuing, all TAs participate |
-| **Efficiency** | ✅ Good | Reader-writer pattern, short critical sections |
-| **Scalability** | ✅ Good | Works well with 2-8 TAs |
-| **Maintainability** | ✅ Excellent | Clear code, extensive logging |
+| **Correctness** | Excellent | No race conditions in Part 2b |
+| **Safety** | Excellent | All critical section requirements satisfied |
+| **Liveness** | Excellent | No deadlock, no livelock, guaranteed progress |
+| **Fairness** | Good | FIFO queuing, all TAs participate |
+| **Efficiency** | Good | Reader-writer pattern, short critical sections |
+| **Scalability** | Good | Works well with 2-8 TAs |
+| **Maintainability** | Excellent | Clear code, extensive logging |
 
 ---
 
@@ -527,14 +526,14 @@ acquire(READ) → release(READ) → acquire(WRITE)
 - Part 2a implementation (no synchronization)
 - Demonstrates race conditions
 - Uses shared memory for rubric and exam data
-- ~350 lines of code
+
 
 **ta_marking_semaphore_student1_student2.cpp**
 - Part 2b implementation (with semaphores)
 - Eliminates race conditions
 - Implements reader-writer pattern
 - Extensive synchronization logging
-- ~600 lines of code
+
 
 ### Build Files
 
@@ -578,10 +577,6 @@ acquire(READ) → release(READ) → acquire(WRITE)
 - Technical deep dive
 - Design decisions and rationale
 - Implementation details
-
-**docs/FILE_FORMATS.txt**
-- Input file format specifications
-- Examples and guidelines
 
 ---
 
@@ -672,10 +667,10 @@ ipcrm -s <semid>
 - Clear indication of mutual exclusion
 
 **Importance**: Extensive logging makes it easy to verify:
-- ✅ Correctness of synchronization
-- ✅ No race conditions
-- ✅ Proper lock acquisition/release
-- ✅ Critical section entry/exit
+- Correctness of synchronization
+- No race conditions
+- Proper lock acquisition/release
+- Critical section entry/exit
 
 ---
 
@@ -714,21 +709,21 @@ ipcrm -s <semid>
 ### Code Quality
 
 **Style**:
-- ✅ Consistent indentation (4 spaces)
-- ✅ Meaningful variable names
-- ✅ Clear function names
-- ✅ Organized structure
+- Consistent indentation (4 spaces)
+- Meaningful variable names
+- Clear function names
+- Organized structure
 
 **Readability**:
-- ✅ Comprehensive comments
-- ✅ Section markers
-- ✅ Function documentation
-- ✅ Clear logic flow
+- Comprehensive comments
+- Section markers
+- Function documentation
+- Clear logic flow
 
 **Error Handling**:
-- ✅ All system calls checked
-- ✅ Graceful error messages
-- ✅ Proper cleanup on error
+- All system calls checked
+- Graceful error messages
+- Proper cleanup on error
 
 ---
 
@@ -776,22 +771,6 @@ ipcrm -s <semid>  # Remove set
 g++ --version  # Check version
 g++ -std=c++11 -o prog file.cpp  # Specify standard
 ```
-
----
-
-## Contact Information
-
-For questions about this implementation:
-- Review this README
-- Check reportPartC.md for detailed analysis
-- Examine code comments
-- Review documentation files in docs/
-
----
-
-## Academic Integrity
-
-This code is submitted for academic evaluation in SYSC4001. It represents original work by the listed students and should not be copied or redistributed.
 
 ---
 
